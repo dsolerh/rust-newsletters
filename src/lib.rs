@@ -7,14 +7,19 @@ async fn greet(req: HttpRequest) -> impl Responder {
     format!("Hello {}!", &name)
 }
 
-async fn health_check() -> impl Responder {
-    HttpResponse::Ok()
+async fn health_check() -> HttpResponse {
+    HttpResponse::Ok().finish()
+}
+
+async fn subscribe() -> HttpResponse {
+    HttpResponse::Ok().finish()
 }
 
 pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
     let server = HttpServer::new(|| {
         App::new()
             .route("/health-check", web::get().to(health_check))
+            .route("/subscriptions", web::get().to(subscribe))
             .route("/", web::get().to(greet))
             .route("/{name}", web::get().to(greet))
     })
