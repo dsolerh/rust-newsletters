@@ -1,14 +1,37 @@
 use std::net::TcpListener;
 
-use rust_newsletters::run;
+use reqwest::Client;
+use rstest::*;
 
+/// Spin up an instance of our application
+/// and returns its address (i.e. http://localhost:XXXX)
+fn spawn_app() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind address.");
+
+    // We retrieve the port assigned to us by the OS
+    let port = listener.local_addr().unwrap().port();
+
+    let server = rust_newsletters::run(listener).expect("Failed to bind address");
+
+    // Launch the server as a background task
+    // tokio::spawn returns a handle to the spawned future,
+    // but we have no use for it here, hence the non-binding let
+    let _ = tokio::spawn(server);
+
+    // We return the application address to the caller!
+    format!("http://127.0.0.1:{}", port)
+}
+
+#[fixture]
+fn setup_server_test() -> (String, Client) {
+    (spawn_app(), Client::new())
+}
+
+#[rstest]
 #[tokio::test]
-async fn health_check_works() {
+async fn health_check_works(setup_server_test: (String, Client)) {
     // Arrange
-    let address = spawn_app();
-    // We need to bring in `reqwest`
-    // to perform HTTP requests against our application.
-    let client = reqwest::Client::new();
+    let (address, client) = setup_server_test;
 
     // Act
     let response = client
@@ -22,20 +45,54 @@ async fn health_check_works() {
     assert_eq!(Some(0), response.content_length());
 }
 
-// Launch our application in the background ~somehow~
-fn spawn_app() -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind address.");
+#[rstest]
+#[tokio::test]
+async fn subscribe_returns_200_for_valid_form_data(setup_server_test: (String, Client)) {
+    // Arrange
+    let (address, client) = setup_server_test;
 
-    // We retrieve the port assigned to us by the OS
-    let port = listener.local_addr().unwrap().port();
+    // Act
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+    let response = client
+        .post(format!("{}/subscriptions", address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
+        .await
+        .expect("Failed to execute request.");
 
-    let server = run(listener).expect("Failed to bind address");
+    // Assert
+    assert_eq!(200, response.status().as_u16());
+}
 
-    // Launch the server as a background task
-    // tokio::spawn returns a handle to the spawned future,
-    // but we have no use for it here, hence the non-binding let
-    let _ = tokio::spawn(server);
+#[rstest]
+#[case::missing_email("name=le%20guin", "missing the email")]
+#[case::missing_name("email=ursula_le_guin%40gmail.com", "missing the name")]
+#[case::empty_body("", "missing both name and email")]
+#[tokio::test]
+async fn subscribe_returns_400_when_form_data_is_missing(
+    setup_server_test: (String, Client),
+    #[case] body: String,
+    #[case] error_message: String,
+) {
+    // Arrange
+    let (address, client) = setup_server_test;
 
-    // We return the application address to the caller!
-    format!("http://127.0.0.1:{}", port)
+    // Act
+    let response = client
+        .post(format!("{}/subscriptions", address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // Assert
+    assert_eq!(
+        400,
+        response.status().as_u16(),
+        // Additional customised error message on test failure
+        "The API did not fail with 400 Bad Request when the payload was {}.",
+        error_message
+    );
 }
