@@ -1,6 +1,9 @@
+use std::net::TcpListener;
+
 use rust_newsletters::run;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    run().await
+    let listener = TcpListener::bind("127.0.0.1:8000").expect("Failed to bind address.");
+    run(listener)?.await
 }
