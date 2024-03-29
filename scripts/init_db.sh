@@ -27,14 +27,18 @@ DB_PORT="${POSTGRES_PORT:=5432}"
 # Check if a custom host has been set, otherwise default to 'localhost'
 DB_HOST="${POSTGRES_HOST:=localhost}"
 
-# Launch postgres using Docker
-docker run \
-  -e POSTGRES_USER=${DB_USER} \
-  -e POSTGRES_PASSWORD=${DB_PASSWORD} \
-  -e POSTGRES_DB=${DB_NAME} \
-  -p "${DB_PORT}":5432 \
-  -d postgres \
-  postgres -N 1000
+# Allow to skip Docker if a dockerized Postgres database is already running
+if [[ -z "${SKIP_DOCKER}" ]]
+then
+    # Launch postgres using Docker
+    docker run \
+        -e POSTGRES_USER=${DB_USER} \
+        -e POSTGRES_PASSWORD=${DB_PASSWORD} \
+        -e POSTGRES_DB=${DB_NAME} \
+        -p "${DB_PORT}":5432 \
+        -d postgres \
+        postgres -N 1000
+fi
   
 # Keep pinging Postgres until it's ready to accept commands
 export PGPASSWORD="${DB_PASSWORD}"
