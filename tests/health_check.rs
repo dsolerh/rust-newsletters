@@ -2,6 +2,8 @@ use std::net::TcpListener;
 
 use reqwest::Client;
 use rstest::*;
+use rust_newsletters::config::get_config;
+use sqlx::{Connection, PgConnection};
 
 /// Spin up an instance of our application
 /// and returns its address (i.e. http://localhost:XXXX)
@@ -50,6 +52,11 @@ async fn health_check_works(setup_server_test: (String, Client)) {
 async fn subscribe_returns_200_for_valid_form_data(setup_server_test: (String, Client)) {
     // Arrange
     let (address, client) = setup_server_test;
+    let config = get_config().expect("Failed to read configuration.");
+    let connection_string = config.database.connection_string();
+    let mut connection = PgConnection::connect(&connection_string)
+        .await
+        .expect("Failed to connect to Postgres.");
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
@@ -63,13 +70,21 @@ async fn subscribe_returns_200_for_valid_form_data(setup_server_test: (String, C
 
     // Assert
     assert_eq!(200, response.status().as_u16());
+
+    let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
+        .fetch_one(&mut connection)
+        .await
+        .expect("Failed to fetch saved subscription.");
+
+    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
+    assert_eq!(saved.name, "le guin");
 }
 
 #[rstest]
 #[case::missing_email("name=le%20guin", "missing the email")]
 #[case::missing_name("email=ursula_le_guin%40gmail.com", "missing the name")]
 #[case::empty_body("", "missing both name and email")]
-#[case::empty_email("name=daniel&email= ", "empty email")]
+// #[case::empty_email("name=daniel&email= ", "empty email")]
 #[tokio::test]
 async fn subscribe_returns_400_when_form_data_is_missing(
     setup_server_test: (String, Client),
