@@ -69,6 +69,7 @@ async fn subscribe_returns_200_for_valid_form_data(setup_server_test: (String, C
 #[case::missing_email("name=le%20guin", "missing the email")]
 #[case::missing_name("email=ursula_le_guin%40gmail.com", "missing the name")]
 #[case::empty_body("", "missing both name and email")]
+#[case::empty_email("name=daniel&email= ", "empty email")]
 #[tokio::test]
 async fn subscribe_returns_400_when_form_data_is_missing(
     setup_server_test: (String, Client),
