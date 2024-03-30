@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 #[derive(serde::Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
@@ -31,5 +33,16 @@ impl DatabaseSettings {
             "postgres://{}:{}@{}:{}/{}",
             self.username, self.password, self.host, self.port, self.database_name
         )
+    }
+
+    pub fn connection_string_without_db_name(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}",
+            self.username, self.password, self.host, self.port
+        )
+    }
+
+    pub fn generate_database_name(&mut self) {
+        self.database_name = Uuid::new_v4().to_string()
     }
 }
