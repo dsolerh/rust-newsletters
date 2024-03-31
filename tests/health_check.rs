@@ -1,12 +1,32 @@
 use std::net::TcpListener;
 
+use once_cell::sync::Lazy;
 use reqwest::Client;
 use rstest::*;
 use rust_newsletters::{
     config::{get_config, DatabaseSettings},
     startup,
+    telemetry::{get_subscriber, init_subscriber},
 };
 use sqlx::{Connection, Executor, PgConnection, PgPool};
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let default_filter_level = "info".to_string();
+    let subscriber_name = "test".to_string();
+    if std::env::var("TEST_LOG").is_ok() {
+        init_subscriber(get_subscriber(
+            subscriber_name,
+            default_filter_level,
+            std::io::stdout,
+        ))
+    } else {
+        init_subscriber(get_subscriber(
+            subscriber_name,
+            default_filter_level,
+            std::io::sink,
+        ))
+    }
+});
 
 struct TestApp {
     address: String,
@@ -16,13 +36,15 @@ struct TestApp {
 /// Spin up an instance of our application
 /// and returns its address (i.e. http://localhost:XXXX)
 async fn spawn_test_app() -> TestApp {
+    Lazy::force(&TRACING);
+
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind address.");
 
     // We retrieve the port assigned to us by the OS
     let port = listener.local_addr().unwrap().port();
 
     let mut config = get_config().expect("Failed to read configuration.");
-    
+
     let connection_pool = configure_database(&mut config.database).await;
 
     let server = startup::run(listener, connection_pool.clone()).expect("Failed to bind address");
