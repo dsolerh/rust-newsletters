@@ -39,3 +39,4 @@ features = [
 [dev-dependencies]
 reqwest = "0.12.2"
 rstest = "0.18.2"
+once_cell = "1"
