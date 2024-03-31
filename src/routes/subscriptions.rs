@@ -14,13 +14,13 @@ pub struct SubscriptionData {
 
 pub async fn subscribe(form: Form<SubscriptionData>, connection: Data<PgPool>) -> HttpResponse {
     let request_id = Uuid::new_v4();
-    log::info!(
+    tracing::info!(
         "request {} | Adding '{}' '{}' as a new subscriber.",
         request_id,
         form.email,
         form.name
     );
-    log::info!(
+    tracing::info!(
         "request {} | Saving new subscriber details in the database",
         request_id
     );
@@ -38,14 +38,14 @@ pub async fn subscribe(form: Form<SubscriptionData>, connection: Data<PgPool>) -
     .await
     {
         Ok(_) => {
-            log::info!(
+            tracing::info!(
                 "request {} | Saving new subscriber details in the database",
                 request_id
             );
             HttpResponse::Ok().finish()
         }
         Err(e) => {
-            log::error!(
+            tracing::error!(
                 "request {} | Failed to execute the query: {:?}",
                 request_id,
                 e
