@@ -1958,6 +1958,7 @@ dependencies = [
  "chrono",
  "config",
  "env_logger",
+ "log",
  "reqwest",
  "rstest",
  "serde",
