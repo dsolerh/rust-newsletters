@@ -12,7 +12,7 @@ async fn main() -> Result<(), std::io::Error> {
     let config = get_config().expect("Failed to read configuration.");
 
     // initialize the tracing
-    let subscriber = get_subscriber("newsletters".into(), "info".into());
+    let subscriber = get_subscriber("newsletters".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
 
     // initialize the connection pool
