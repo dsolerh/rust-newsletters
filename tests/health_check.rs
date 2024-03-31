@@ -8,6 +8,7 @@ use rust_newsletters::{
     startup,
     telemetry::{get_subscriber, init_subscriber},
 };
+use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -64,7 +65,7 @@ async fn spawn_test_app() -> TestApp {
 async fn configure_database(config: &mut DatabaseSettings) -> PgPool {
     config.generate_database_name();
     // create the database
-    let mut connection = PgConnection::connect(&config.connection_string_without_db_name())
+    let mut connection = PgConnection::connect(&config.connection_string_without_db_name().expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
     connection
@@ -73,7 +74,7 @@ async fn configure_database(config: &mut DatabaseSettings) -> PgPool {
         .expect("Failed to create the database.");
 
     // Migrate the database
-    let connection_pool = PgPool::connect(&config.connection_string())
+    let connection_pool = PgPool::connect(&config.connection_string().expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
     sqlx::migrate!("./migrations")
